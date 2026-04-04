@@ -1,0 +1,245 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Backgrounds — light mode */
+  --bg: #ffffff;
+  --bg-alt: #f5f5f7;
+  --bg-card: #f0f0f5;
+  --lines: #e0e0e8;
+  --menu-bg: #ffffff;
+
+  /* Texto — light mode */
+  --text-100: #0a0a0f;
+  --text-64: rgba(10,10,15,0.64);
+  --text-50: rgba(10,10,15,0.50);
+  --text-30: rgba(10,10,15,0.30);
+  --text-20: rgba(10,10,15,0.12);
+
+  /* Cores Clarion — mantém */
+  --blue: #0057FF;
+  --blue-dark: #0040CC;
+  --blue-glow: rgba(0, 87, 255, 0.12);
+  --orange: #FF7A00;
+  --orange-dark: #CC6200;
+  --orange-glow: rgba(255, 122, 0, 0.12);
+  --white: #ffffff;
+
+  /* Dark section tokens */
+  --dark-bg: #04050F;
+  --dark-text: #ffffff;
+  --dark-text-64: rgba(255,255,255,0.64);
+  --dark-text-50: rgba(255,255,255,0.50);
+  --dark-text-30: rgba(255,255,255,0.30);
+  --dark-card: #0D1020;
+  --dark-lines: #1a1d2e;
+
+  /* Tipografia */
+  --font-display: 'Clash Display', sans-serif;
+  --font-body: 'Satoshi', sans-serif;
+
+  /* Raios */
+  --radius-pill: 99rem;
+  --radius-card: 2rem;
+  --radius-sm: 0.5rem;
+
+  /* Espaçamentos */
+  --spacing-section: 10rem;
+  --spacing-lg: 5rem;
+  --spacing-md: 2rem;
+
+  /* Transições */
+  --transition-fast: 0.2s ease;
+  --transition-mid: 0.4s ease;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-100);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Hide default cursor on desktop when custom cursor is active */
+@media (hover: hover) and (pointer: fine) {
+  * {
+    cursor: none !important;
+  }
+}
+
+::selection {
+  background-color: var(--blue);
+  color: var(--white);
+}
+
+/* Scroll-margin for fixed navbar on all section anchors */
+[id] {
+  scroll-margin-top: 5rem;
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Hero gradient text fallback */
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Custom cursor states */
+.custom-cursor.cursor-hover {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-color: rgba(0, 87, 255, 0.6);
+}
+
+/* Dark section utility */
+.section-dark {
+  background-color: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+/* GSAP pre-animation hidden state — prevents flash of unstyled content */
+.gsap-hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* About section — animated dot grid */
+@keyframes dotMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 32px 32px; }
+}
+
+.about-dot-grid {
+  background-image: radial-gradient(circle, rgba(0,87,255,0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+  animation: dotMove 8s linear infinite;
+}
+
+/* About section — floating blobs */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+/* Global form field contrast fix */
+input,
+textarea {
+  color: #0a0a0f;
+  -webkit-text-fill-color: #0a0a0f;
+}
+
+.cta-dot-grid {
+  background-image: radial-gradient(circle, rgba(0,87,255,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Subtle noise grain texture overlay */
+.bg-grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.4;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Diagonal accent line — subtle decorative stripe */
+.bg-diagonal-accent::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  width: 150%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(0,87,255,0.08) 30%, rgba(255,122,0,0.06) 70%, transparent 100%);
+  transform: rotate(-3deg);
+  top: 30%;
+  left: -25%;
+}
+
+/* Light section glow — orange variant */
+.bg-glow-orange {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,122,0,0.04) 0%, transparent 70%);
+  filter: blur(80px);
+}
+
+/* Light section glow — blue variant */
+.bg-glow-blue {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,87,255,0.04) 0%, transparent 70%);
+  filter: blur(80px);
+}
+
+::placeholder {
+  color: rgba(10, 10, 15, 0.35);
+  -webkit-text-fill-color: rgba(10, 10, 15, 0.35);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  :root {
+    --spacing-section: 5rem;
+  }
+
+  /* Footer mobile */
+  .footer-watermark {
+    font-size: 40vw !important;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --spacing-section: 3.5rem;
+  }
+}
