@@ -48,8 +48,37 @@ export default function Navbar() {
   }, [updateProgress]);
 
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    // iOS Safari ignores body.overflow: hidden on its own — we lock
+    // position:fixed while preserving the current scroll offset, then
+    // restore it when the overlay closes.
+    if (mobileOpen) {
+      const y = window.scrollY;
+      document.body.dataset.scrollY = String(y);
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${y}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+    } else {
+      const y = Number(document.body.dataset.scrollY || 0);
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      if (y) window.scrollTo(0, y);
+      delete document.body.dataset.scrollY;
+    }
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+    };
   }, [mobileOpen]);
 
   return (
@@ -122,8 +151,10 @@ export default function Navbar() {
           {/* Hamburger — Mobile */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="relative z-[60] flex h-10 w-10 items-center justify-center md:hidden"
+            className="relative z-[60] flex h-11 w-11 items-center justify-center md:hidden"
             aria-label="Menu"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-menu"
           >
             <div className="flex w-5 flex-col gap-1.5">
               <span
@@ -143,11 +174,16 @@ export default function Navbar() {
 
       {/* Mobile Menu Overlay — sibling of header for correct stacking on iOS */}
       <div
+        id="mobile-menu"
         className={`fixed inset-0 z-[55] flex flex-col items-center justify-center bg-[#04050F] transition-all duration-500 md:hidden ${
           mobileOpen
             ? 'pointer-events-auto opacity-100'
             : 'pointer-events-none opacity-0'
         }`}
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
       >
         <ul className="flex flex-col items-center gap-8">
           {NAV_LINKS.map((link, i) => (

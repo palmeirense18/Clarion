@@ -1,15 +1,53 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
+type Status = 'idle' | 'loading' | 'success' | 'error';
+
 export default function Contact() {
   const sectionRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const [status, setStatus] = useState<Status>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (status === 'loading') return;
+
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const payload = {
+      name: String(fd.get('name') ?? ''),
+      email: String(fd.get('email') ?? ''),
+      message: String(fd.get('message') ?? ''),
+      website: String(fd.get('website') ?? ''),
+    };
+
+    setStatus('loading');
+    setErrorMsg('');
+
+    const subject = `[Clarion] Nova mensagem de ${payload.name}`;
+    const body = [
+      `Nome: ${payload.name}`,
+      `Email: ${payload.email}`,
+      '',
+      'Mensagem:',
+      payload.message,
+    ].join('\n');
+    window.location.href =
+      'mailto:clarionwebmkt@gmail.com' +
+      `?subject=${encodeURIComponent(subject)}` +
+      `&body=${encodeURIComponent(body)}`;
+
+    setStatus('success');
+    form.reset();
+    setTimeout(() => setStatus('idle'), 4000);
+  };
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -78,38 +116,110 @@ export default function Contact() {
         {/* Form */}
         <form
           ref={formRef}
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={handleSubmit}
           className="mt-12 flex flex-col gap-4 text-left"
+          noValidate
         >
-          <div className="form-field grid gap-4 sm:grid-cols-2">
-            <input
-              type="text"
-              placeholder="Seu nome"
-              className="w-full rounded-[0.75rem] border border-[#d0d0d8] bg-white px-5 py-4 text-sm text-[#0a0a0f] placeholder-[rgba(10,10,15,0.35)] outline-none transition-all duration-fast focus:border-[#0057FF] focus:shadow-[0_0_0_3px_rgba(0,87,255,0.12)]"
-            />
-            <input
-              type="email"
-              placeholder="Seu e-mail"
-              className="w-full rounded-[0.75rem] border border-[#d0d0d8] bg-white px-5 py-4 text-sm text-[#0a0a0f] placeholder-[rgba(10,10,15,0.35)] outline-none transition-all duration-fast focus:border-[#0057FF] focus:shadow-[0_0_0_3px_rgba(0,87,255,0.12)]"
-            />
-          </div>
-          <textarea
-            rows={5}
-            placeholder="Conte sobre seu projeto..."
-            className="form-field w-full resize-none rounded-[0.75rem] border border-[#d0d0d8] bg-white px-5 py-4 text-sm text-[#0a0a0f] placeholder-[rgba(10,10,15,0.35)] outline-none transition-all duration-fast focus:border-[#0057FF] focus:shadow-[0_0_0_3px_rgba(0,87,255,0.12)]"
+          {/* Honeypot */}
+          <input
+            type="text"
+            name="website"
+            autoComplete="off"
+            tabIndex={-1}
+            aria-hidden="true"
+            className="absolute h-0 w-0 opacity-0 pointer-events-none"
           />
+          <div className="form-field grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="sr-only">Nome</span>
+              <input
+                type="text"
+                name="name"
+                autoComplete="name"
+                required
+                placeholder="Seu nome"
+                className="w-full rounded-[0.75rem] border border-[#d0d0d8] bg-white px-5 py-4 text-base text-[#0a0a0f] placeholder-[rgba(10,10,15,0.35)] outline-none transition-all duration-fast focus:border-[#0057FF] focus:shadow-[0_0_0_3px_rgba(0,87,255,0.12)]"
+              />
+            </label>
+            <label className="block">
+              <span className="sr-only">E-mail</span>
+              <input
+                type="email"
+                name="email"
+                autoComplete="email"
+                required
+                placeholder="Seu e-mail"
+                className="w-full rounded-[0.75rem] border border-[#d0d0d8] bg-white px-5 py-4 text-base text-[#0a0a0f] placeholder-[rgba(10,10,15,0.35)] outline-none transition-all duration-fast focus:border-[#0057FF] focus:shadow-[0_0_0_3px_rgba(0,87,255,0.12)]"
+              />
+            </label>
+          </div>
+          <label className="form-field block">
+            <span className="sr-only">Mensagem</span>
+            <textarea
+              name="message"
+              required
+              rows={5}
+              placeholder="Conte sobre seu projeto..."
+              className="w-full resize-none rounded-[0.75rem] border border-[#d0d0d8] bg-white px-5 py-4 text-base text-[#0a0a0f] placeholder-[rgba(10,10,15,0.35)] outline-none transition-all duration-fast focus:border-[#0057FF] focus:shadow-[0_0_0_3px_rgba(0,87,255,0.12)]"
+            />
+          </label>
           <button
             type="submit"
-            className="form-field mt-2 w-full rounded-pill bg-[#0057FF] px-10 py-4 text-sm font-[500] text-white transition-all duration-mid hover:bg-[#0040CC] hover:shadow-lg hover:shadow-[rgba(0,87,255,0.12)] active:scale-[0.97] sm:mx-auto sm:w-auto"
+            disabled={status === 'loading' || status === 'success'}
+            aria-busy={status === 'loading'}
+            className="form-field mt-2 flex w-full items-center justify-center gap-2 rounded-pill px-10 py-4 text-sm font-[500] text-white transition-all duration-mid hover:shadow-lg hover:shadow-[rgba(0,87,255,0.12)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-90 sm:mx-auto sm:w-auto"
+            style={{
+              minHeight: '48px',
+              background: status === 'success' ? '#00C896' : '#0057FF',
+            }}
           >
-            Enviar mensagem
+            {status === 'loading' && (
+              <svg
+                className="contact-spinner h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3" />
+                <path
+                  d="M22 12a10 10 0 0 1-10 10"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
+            {status === 'idle' && <>Enviar mensagem</>}
+            {status === 'loading' && <>Enviando...</>}
+            {status === 'success' && <>Mensagem enviada ✓</>}
+            {status === 'error' && <>Tentar novamente</>}
           </button>
+          {status === 'error' && errorMsg && (
+            <p role="alert" className="form-field text-center text-sm text-red-500">
+              {errorMsg}
+            </p>
+          )}
         </form>
+        <style jsx>{`
+          @keyframes contact-spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+          .contact-spinner {
+            animation: contact-spin 0.9s linear infinite;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .contact-spinner {
+              animation: none;
+            }
+          }
+        `}</style>
 
         {/* Alternative contact */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <a
-            href="https://wa.me/5500000000000"
+            href="https://wa.me/5519992944883"
             target="_blank"
             rel="noopener noreferrer"
             className="form-field flex items-center gap-2 rounded-pill border border-[#e0e0e8] px-6 py-3 text-sm text-[rgba(10,10,15,0.64)] transition-all duration-mid hover:border-[#0057FF] hover:text-[#0057FF]"
@@ -127,7 +237,7 @@ export default function Contact() {
             WhatsApp
           </a>
           <a
-            href="mailto:contato@clarion.com.br"
+            href="mailto:clarionwebmkt@gmail.com"
             className="form-field flex items-center gap-2 rounded-pill border border-[#e0e0e8] px-6 py-3 text-sm text-[rgba(10,10,15,0.64)] transition-all duration-mid hover:border-[#0057FF] hover:text-[#0057FF]"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

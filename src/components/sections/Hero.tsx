@@ -1,324 +1,328 @@
 'use client';
 
-import { useLayoutEffect, useRef, useCallback } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import HeroParticles from './HeroParticles';
+import { asset } from '@/lib/asset';
 
 gsap.registerPlugin(ScrollTrigger);
-
-const TITLE_WORDS = [
-  'Transformamos',
-  'ideias',
-  'em',
-  'experiências',
-  'digitais',
-];
-
-const SCROLL_PX_PER_SECOND = 250;
 
 export default function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const subtitleRef = useRef<HTMLParagraphElement>(null);
-  const ctaRef = useRef<HTMLDivElement>(null);
-  const badgeRef = useRef<HTMLDivElement>(null);
-  const videoFailedRef = useRef(false);
 
-  const handleVideoError = useCallback(() => {
-    videoFailedRef.current = true;
-    if (videoRef.current) {
-      videoRef.current.style.display = 'none';
-    }
+  const eyebrowRef = useRef<HTMLSpanElement>(null);
+  const line1Ref = useRef<HTMLSpanElement>(null);
+  const line2Ref = useRef<HTMLSpanElement>(null);
+  const subRef = useRef<HTMLParagraphElement>(null);
+  const ctasRef = useRef<HTMLDivElement>(null);
+  const hintRef = useRef<HTMLDivElement>(null);
+
+  // `ready` only flips true once the video has enough data to be scrubbed
+  // (readyState >= 2). Gating the ScrollTrigger prevents seeks against an
+  // unloaded video from throwing and stuttering.
+  const [ready, setReady] = useState(false);
+  // Mobile-stall fallback: if 4s pass without the video reaching readyState 2
+  // (common on iOS Safari with muted preloaded video), we drop the pin and
+  // just play the video through once. Documented inline where it triggers.
+  const [fallback, setFallback] = useState(false);
+
+  /* ── Watch for the video to become scrubbable ── */
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const markReady = () => {
+      if (video.readyState >= 2) setReady(true);
+    };
+
+    markReady();
+    video.addEventListener('loadedmetadata', markReady);
+    video.addEventListener('loadeddata', markReady);
+    video.addEventListener('canplay', markReady);
+
+    // Desktop: give up to 4s for the video to buffer. Mobile: only 2s —
+    // on cellular we'd rather drop into the fallback (video plays once,
+    // no pin) than hang the hero.
+    const isMobile =
+      typeof window !== 'undefined' && window.innerWidth < 640;
+    const stallTimer = window.setTimeout(
+      () => {
+        if (video.readyState < 2) setFallback(true);
+      },
+      isMobile ? 2000 : 4000,
+    );
+
+    return () => {
+      video.removeEventListener('loadedmetadata', markReady);
+      video.removeEventListener('loadeddata', markReady);
+      video.removeEventListener('canplay', markReady);
+      window.clearTimeout(stallTimer);
+    };
   }, []);
 
+  /* ── Content intro animation (runs once on mount, independent of video) ── */
   useLayoutEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
+    const targets = [
+      eyebrowRef.current,
+      line1Ref.current,
+      line2Ref.current,
+      subRef.current,
+      ctasRef.current,
+    ].filter(Boolean);
 
-    let subtitleFallbackTimer: ReturnType<typeof setTimeout>;
+    if (targets.length === 0) return;
 
     const ctx = gsap.context(() => {
-      // --- Set initial hidden states BEFORE first paint ---
-      const words = titleRef.current?.querySelectorAll('.hero-word');
-      if (words?.length) {
-        gsap.set(words, { opacity: 0, y: 60 });
-      }
-      if (subtitleRef.current) {
-        gsap.set(subtitleRef.current, { opacity: 0, y: 30, visibility: 'visible' });
-      }
-      if (ctaRef.current?.children) {
-        gsap.set(ctaRef.current.children, { opacity: 0, y: 20 });
-      }
-      if (badgeRef.current) {
-        gsap.set(badgeRef.current, { opacity: 0 });
-      }
+      gsap.set(targets, { opacity: 0, y: 20 });
+      gsap.to(targets, {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: 'power3.out',
+        stagger: 0.12,
+        delay: 0.3,
+      });
+    }, sectionRef);
 
-      // --- Title word-by-word ---
-      if (words?.length) {
-        gsap.to(words, {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: 'power3.out',
-          stagger: 0.08,
-          delay: 0.3,
-        });
-      }
+    return () => ctx.revert();
+  }, []);
 
-      // --- Subtitle fade in ---
-      if (subtitleRef.current) {
-        gsap.to(subtitleRef.current, {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: 'power2.out',
-          delay: 0.9,
-          onComplete: () => {
-            if (subtitleRef.current) {
-              subtitleRef.current.style.opacity = '1';
-              subtitleRef.current.style.transform = 'none';
-            }
+  /* ── Scroll-scrub the video + hint fade ── */
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    const video = videoRef.current;
+    const hint = hintRef.current;
+    if (!section || !video) return;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Reduced motion: show the first frame, no pin, no scroll trap.
+    // Setting currentTime to a small positive value forces a frame render
+    // (0 can sometimes leave the <video> blank on Safari).
+    if (reduced) {
+      const park = () => {
+        try { video.currentTime = 0.1; } catch { /* ignore */ }
+      };
+      if (video.readyState >= 1) park();
+      else video.addEventListener('loadedmetadata', park, { once: true });
+      if (hint) gsap.set(hint, { opacity: 0 });
+      return;
+    }
+
+    // Mobile-stall fallback path: play once, no pin, scroll stays free.
+    if (fallback) {
+      video.play().catch(() => {
+        /* browser refused without a gesture — nothing to recover here */
+      });
+      if (hint) gsap.set(hint, { opacity: 0 });
+      return;
+    }
+
+    if (!ready) return;
+
+    const ctx = gsap.context(() => {
+      const duration = video.duration || 3.2;
+
+      ScrollTrigger.create({
+        trigger: section,
+        start: 'top top',
+        end: '+=120%',
+        pin: true,
+        pinSpacing: true,
+        scrub: 0.5, // gentle ease so Lenis' lerp doesn't fight the seek
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          if (!video.duration) return;
+          const t = self.progress * duration;
+          if (isFinite(t)) video.currentTime = t;
+        },
+      });
+
+      if (hint) {
+        gsap.to(hint, {
+          opacity: 0,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: section,
+            start: 'top top',
+            end: '+=30%',
+            scrub: true,
           },
         });
       }
 
-      subtitleFallbackTimer = setTimeout(() => {
-        if (subtitleRef.current && getComputedStyle(subtitleRef.current).opacity === '0') {
-          gsap.set(subtitleRef.current, { opacity: 1, y: 0, visibility: 'visible' });
-        }
-      }, 2500);
+      // Important after Lenis bridge — recalculate positions once this
+      // pinned section is registered.
+      ScrollTrigger.refresh();
+    }, section);
 
-      // --- CTA buttons ---
-      if (ctaRef.current) {
-        gsap.to(ctaRef.current.children, {
-          opacity: 1,
-          y: 0,
-          duration: 0.6,
-          ease: 'power2.out',
-          stagger: 0.12,
-          delay: 1.2,
-        });
-      }
-
-      // --- Scroll badge ---
-      if (badgeRef.current) {
-        gsap.to(badgeRef.current, {
-          opacity: 1,
-          delay: 1.6,
-          duration: 0.5,
-        });
-        gsap.to(badgeRef.current, {
-          y: -8,
-          duration: 1.2,
-          ease: 'power1.inOut',
-          yoyo: true,
-          repeat: -1,
-          delay: 2,
-        });
-      }
-    }, sectionRef);
-
-    // --- Video scrub with pin + exit effects ---
-    const video = videoRef.current;
-    let setupScrub: (() => void) | null = null;
-
-    if (video && !videoFailedRef.current) {
-      video.pause();
-
-      setupScrub = () => {
-        const duration = video.duration;
-        if (!duration || !isFinite(duration) || videoFailedRef.current) return;
-
-        const scrollDistance = duration * SCROLL_PX_PER_SECOND;
-
-        ctx.add(() => {
-          ScrollTrigger.create({
-            trigger: section,
-            start: 'top top',
-            end: () => `+=${scrollDistance}`,
-            pin: true,
-            pinSpacing: true,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
-            refreshPriority: 1,
-            scrub: 0.3,
-            onUpdate: (self) => {
-              const p = self.progress;
-
-              // Video scrub
-              const targetTime = p * duration;
-              if (Math.abs(video.currentTime - targetTime) > 0.01) {
-                video.currentTime = targetTime;
-              }
-
-              // Badge: fade out in first 20%
-              if (badgeRef.current) {
-                const badgeOpacity = p < 0.2 ? 1 - p / 0.2 : 0;
-                gsap.set(badgeRef.current, { opacity: badgeOpacity });
-              }
-
-              // Content + overlay: fade out in last 30% (progress 0.7 → 1.0)
-              if (p > 0.7) {
-                const exitProgress = (p - 0.7) / 0.3; // 0 → 1
-                if (contentRef.current) {
-                  gsap.set(contentRef.current, {
-                    opacity: 1 - exitProgress,
-                    y: -60 * exitProgress,
-                  });
-                }
-                if (overlayRef.current) {
-                  gsap.set(overlayRef.current, { opacity: 0.6 + 0.4 * exitProgress });
-                }
-              } else {
-                if (contentRef.current) {
-                  gsap.set(contentRef.current, { opacity: 1, y: 0 });
-                }
-                if (overlayRef.current) {
-                  gsap.set(overlayRef.current, { opacity: 0.6 });
-                }
-              }
-            },
-          });
-        });
-      };
-
-      if (video.readyState >= 1) {
-        setupScrub!();
-      } else {
-        video.addEventListener('loadedmetadata', setupScrub!, { once: true });
-      }
-    }
-
-    // --- Fallback: if no video scrub, use simple parallax exit ---
-    const setupFallbackExit = () => {
-      if (videoFailedRef.current || !videoRef.current) {
-        ctx.add(() => {
-          const exitTl = gsap.timeline({
-            scrollTrigger: {
-              trigger: section,
-              start: 'top top',
-              end: 'bottom top',
-              scrub: true,
-            },
-          });
-
-          if (overlayRef.current) {
-            exitTl.to(overlayRef.current, { opacity: 1, ease: 'none' }, 0);
-          }
-          if (contentRef.current) {
-            exitTl.to(contentRef.current, { opacity: 0, y: -60, ease: 'none' }, 0);
-          }
-          if (badgeRef.current) {
-            exitTl.to(badgeRef.current, { opacity: 0, ease: 'none' }, 0);
-          }
-        });
-      }
-    };
-
-    // Check fallback after a short delay to allow video error/metadata to resolve
-    const fallbackTimer = setTimeout(setupFallbackExit, 2000);
-
-    return () => {
-      clearTimeout(subtitleFallbackTimer);
-      clearTimeout(fallbackTimer);
-      if (video && setupScrub) {
-        video.removeEventListener('loadedmetadata', setupScrub);
-      }
-      ctx.revert();
-    };
-  }, []);
+    return () => ctx.revert();
+  }, [ready, fallback]);
 
   return (
     <section
       ref={sectionRef}
-      className="relative flex h-[100svh] items-center justify-center overflow-hidden bg-[#04050F]"
+      className="relative h-[100svh] w-full overflow-hidden bg-[#04050F]"
     >
-      {/* Background video — scroll-scrubbed, purely decorative */}
+      {/* Layer 0 — video */}
       <video
         ref={videoRef}
-        src="/videos/hero.mp4"
+        src={asset('/videos/fundo-hero.mp4')}
         muted
         playsInline
         preload="auto"
-        aria-hidden="true"
-        tabIndex={-1}
-        onError={handleVideoError}
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        poster=""
+        disablePictureInPicture
+        disableRemotePlayback
+        {...{ 'webkit-playsinline': 'true' } as Record<string, string>}
+        className="absolute inset-0 z-0 h-full w-full object-cover"
       />
 
-      {/* Dark gradient overlay */}
+      {/* Layer 1 — vertical legibility gradient */}
       <div
-        ref={overlayRef}
-        className="absolute inset-0 bg-gradient-to-b from-[#04050F]/80 via-[#04050F]/60 to-[#04050F]"
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-10"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(4,5,15,0.55) 0%, rgba(4,5,15,0.25) 40%, rgba(4,5,15,0.75) 100%)',
+        }}
       />
 
-      {/* Particles */}
-      <HeroParticles />
+      {/* Layer 2 — edge vignette (lighter on mobile to reduce perceived weight) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-10 hidden sm:block"
+        style={{
+          background:
+            'radial-gradient(ellipse at center, transparent 50%, rgba(4,5,15,0.6) 100%)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-10 sm:hidden"
+        style={{
+          background:
+            'radial-gradient(ellipse at center, transparent 50%, rgba(4,5,15,0.45) 100%)',
+        }}
+      />
 
-      {/* Content — opacity + y animated by scroll */}
-      <div ref={contentRef} className="relative z-10 mx-auto max-w-5xl px-5 text-center sm:px-6">
-        {/* Title */}
-        <h1
-          ref={titleRef}
-          className="font-display text-[clamp(3rem,7vw,6.5rem)] font-[700] leading-[1.05] tracking-tight text-white"
-        >
-          {TITLE_WORDS.map((word, i) => (
-            <span
-              key={i}
-              className={`hero-word inline-block ${
-                word === 'experiências'
-                  ? 'bg-gradient-to-r from-blue to-orange bg-clip-text text-transparent'
-                  : ''
-              }`}
-              style={{ opacity: 0 }}
-            >
-              {word}
-              {i < TITLE_WORDS.length - 1 && '\u00A0'}
-            </span>
-          ))}
-        </h1>
-
-        {/* Subtitle */}
-        <p
-          ref={subtitleRef}
-          className="hero-subtitle mx-auto mt-6 max-w-2xl text-lg text-white/80 md:text-xl"
+      {/* Layer 3 — content */}
+      <div className="relative z-20 flex h-full w-full flex-col items-center justify-center px-6 text-center">
+        <span
+          ref={eyebrowRef}
+          className="font-body text-xs uppercase tracking-[0.35em] text-white/60"
           style={{ opacity: 0 }}
         >
-          Estratégia, design e tecnologia para marcas que querem crescer.
+          CLARION DIGITAL STUDIO
+        </span>
+
+        <h1
+          className="font-display mt-6 font-bold text-white"
+          style={{
+            fontSize: 'clamp(2.25rem, 8vw, 6.5rem)',
+            lineHeight: 1.05,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          <span ref={line1Ref} className="block" style={{ opacity: 0 }}>
+            Construímos experiências
+          </span>
+          <span ref={line2Ref} className="block" style={{ opacity: 0 }}>
+            que comunicam.
+          </span>
+        </h1>
+
+        <p
+          ref={subRef}
+          className="font-body mt-6 max-w-[560px] text-white/75"
+          style={{
+            opacity: 0,
+            fontSize: 'clamp(1rem, 1.5vw, 1.25rem)',
+            lineHeight: 1.6,
+          }}
+        >
+          Design e engenharia sob medida para marcas que não querem ser só mais
+          uma aba no navegador.
         </p>
 
-        {/* CTA Buttons */}
-        <div ref={ctaRef} className="mt-10 flex flex-wrap items-center justify-center gap-4">
+        <div
+          ref={ctasRef}
+          className="mt-10 flex w-full max-w-sm flex-col items-stretch gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:items-center sm:gap-4"
+          style={{ opacity: 0 }}
+        >
           <a
             href="#portfolio"
-            className="rounded-pill bg-blue px-8 py-3.5 text-sm font-medium text-white transition-all duration-mid hover:bg-blue-dark hover:shadow-lg hover:shadow-blue-glow"
-            style={{ opacity: 0 }}
+            className="font-body inline-flex items-center justify-center rounded-full text-sm font-medium text-white transition-transform duration-200 will-change-transform hover:scale-[1.03]"
+            style={{
+              padding: '0.9rem 2rem',
+              minHeight: '48px',
+              background: '#0057FF',
+              boxShadow: '0 6px 24px rgba(0,87,255,0.35)',
+            }}
           >
-            Ver nosso trabalho
+            Ver projetos
           </a>
+
           <a
-            href="#sobre"
-            className="rounded-pill border border-white/20 px-8 py-3.5 text-sm font-medium text-white transition-all duration-mid hover:border-white/40 hover:bg-white/[0.08]"
-            style={{ opacity: 0 }}
+            href="#contato"
+            className="font-body inline-flex items-center justify-center rounded-full text-sm font-medium text-white transition-all duration-200"
+            style={{
+              padding: '0.9rem 2rem',
+              minHeight: '48px',
+              background: 'transparent',
+              border: '1.5px solid rgba(255,255,255,0.35)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.border = '1.5px solid rgba(255,255,255,1)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.border = '1.5px solid rgba(255,255,255,0.35)';
+              e.currentTarget.style.background = 'transparent';
+            }}
           >
-            Conheça a Clarion
+            Entrar em contato
           </a>
         </div>
       </div>
 
-      {/* Scroll badge */}
+      {/* Layer 4 — scroll hint */}
       <div
-        ref={badgeRef}
-        className="absolute bottom-8 right-8 z-10 flex items-center gap-2 rounded-pill border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs text-white/50 backdrop-blur-sm"
-        style={{ opacity: 0 }}
+        ref={hintRef}
+        className="pointer-events-none absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-3"
       >
-        <span className="text-base leading-none">↓</span>
-        scroll para explorar
+        <span className="font-body text-[10px] uppercase tracking-[0.35em] text-white/50">
+          role para explorar
+        </span>
+        <span
+          aria-hidden
+          className="relative block h-8 w-px bg-white/25 overflow-hidden"
+        >
+          <span
+            aria-hidden
+            className="absolute left-1/2 top-0 block h-2 w-px -translate-x-1/2 bg-white"
+            style={{ animation: 'clarion-hero-hint 1.8s ease-in-out infinite' }}
+          />
+        </span>
       </div>
+
+      <style jsx>{`
+        @keyframes clarion-hero-hint {
+          0% {
+            transform: translate(-50%, -100%);
+            opacity: 0;
+          }
+          30% {
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-50%, 400%);
+            opacity: 0;
+          }
+        }
+      `}</style>
     </section>
   );
 }

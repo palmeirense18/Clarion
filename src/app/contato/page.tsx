@@ -1,20 +1,98 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import gsap from 'gsap';
 import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
+import { asset } from '@/lib/asset';
 
-/* ── Floating label input ─────────────────────────────── */
+type Status = 'idle' | 'loading' | 'success' | 'error';
+
+/* ── Floating label field (dark theme) ─────────────────── */
 
 function FloatingField({
   label,
   type = 'text',
   name,
   required = false,
+  textarea = false,
+  rows = 5,
+  autoComplete,
 }: {
   label: string;
   type?: string;
   name: string;
+  required?: boolean;
+  textarea?: boolean;
+  rows?: number;
+  autoComplete?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const [value, setValue] = useState('');
+  const active = focused || value.length > 0;
+
+  const sharedClass =
+    'w-full bg-transparent font-body text-white text-base outline-none border-0 border-b-[1.5px] transition-colors duration-300 px-0';
+  const borderClass = focused ? 'border-[#FF7A00]' : 'border-white/20';
+
+  return (
+    <div className="form-field relative w-full pt-6">
+      <label
+        className={`font-body pointer-events-none absolute left-0 transition-all duration-300 ${
+          active
+            ? 'top-0 text-[11px] uppercase tracking-[0.18em] text-white'
+            : 'top-7 text-sm text-white/40'
+        }`}
+      >
+        {label}
+        {required && <span className="ml-1 text-[#FF7A00]">*</span>}
+      </label>
+      {textarea ? (
+        <textarea
+          name={name}
+          required={required}
+          rows={rows}
+          value={value}
+          autoComplete={autoComplete}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onChange={(e) => setValue(e.target.value)}
+          className={`${sharedClass} ${borderClass} resize-none py-3`}
+        />
+      ) : (
+        <input
+          type={type}
+          name={name}
+          required={required}
+          value={value}
+          autoComplete={autoComplete}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onChange={(e) => setValue(e.target.value)}
+          className={`${sharedClass} ${borderClass} py-3`}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Select (dark theme) ───────────────────────────────── */
+
+function FloatingSelect({
+  label,
+  name,
+  options,
+  required = false,
+}: {
+  label: string;
+  name: string;
+  options: string[];
   required?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
@@ -22,560 +100,454 @@ function FloatingField({
   const active = focused || value.length > 0;
 
   return (
-    <div className="form-field" style={{ position: 'relative', width: '100%' }}>
+    <div className="form-field relative w-full pt-6">
       <label
-        className="font-body"
-        style={{
-          position: 'absolute', left: 0,
-          top: active ? '-0.5rem' : '50%',
-          transform: active ? 'none' : 'translateY(-50%)',
-          fontSize: active ? '0.75rem' : '0.95rem',
-          color: active ? '#0057FF' : 'rgba(10,10,15,0.40)',
-          background: active ? '#ffffff' : 'transparent',
-          padding: active ? '0 4px' : '0',
-          transition: 'all 0.25s ease',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
+        className={`font-body pointer-events-none absolute left-0 transition-all duration-300 ${
+          active
+            ? 'top-0 text-[11px] uppercase tracking-[0.18em] text-white'
+            : 'top-7 text-sm text-white/40'
+        }`}
       >
         {label}
-      </label>
-      <input
-        type={type}
-        name={name}
-        required={required}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        className="font-body"
-        style={{
-          width: '100%', border: 'none',
-          borderBottom: `1.5px solid ${focused ? '#0057FF' : '#e0e0e8'}`,
-          borderRadius: 0, background: 'transparent',
-          padding: '1.25rem 0 0.75rem',
-          fontSize: '1rem', color: '#0a0a0f',
-          outline: 'none',
-          transition: 'border-color 0.25s',
-        }}
-      />
-    </div>
-  );
-}
-
-/* ── Floating label textarea ──────────────────────────── */
-
-function FloatingTextarea({
-  label,
-  name,
-}: {
-  label: string;
-  name: string;
-}) {
-  const [focused, setFocused] = useState(false);
-  const [value, setValue] = useState('');
-  const active = focused || value.length > 0;
-
-  return (
-    <div className="form-field" style={{ position: 'relative', width: '100%' }}>
-      <label
-        className="font-body"
-        style={{
-          position: 'absolute', left: 0,
-          top: active ? '-0.5rem' : '1.25rem',
-          fontSize: active ? '0.75rem' : '0.95rem',
-          color: active ? '#0057FF' : 'rgba(10,10,15,0.40)',
-          background: active ? '#ffffff' : 'transparent',
-          padding: active ? '0 4px' : '0',
-          transition: 'all 0.25s ease',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      >
-        {label}
-      </label>
-      <textarea
-        name={name}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        className="font-body"
-        style={{
-          width: '100%', border: 'none',
-          borderBottom: `1.5px solid ${focused ? '#0057FF' : '#e0e0e8'}`,
-          borderRadius: 0, background: 'transparent',
-          padding: '1.25rem 0 0.75rem',
-          fontSize: '1rem', color: '#0a0a0f',
-          outline: 'none', resize: 'vertical',
-          minHeight: 140,
-          transition: 'border-color 0.25s',
-        }}
-      />
-    </div>
-  );
-}
-
-/* ── Floating label select ────────────────────────────── */
-
-function FloatingSelect({
-  label,
-  name,
-  options,
-}: {
-  label: string;
-  name: string;
-  options: string[];
-}) {
-  const [focused, setFocused] = useState(false);
-  const [value, setValue] = useState('');
-  const active = focused || value.length > 0;
-
-  return (
-    <div className="form-field" style={{ position: 'relative', width: '100%' }}>
-      <label
-        className="font-body"
-        style={{
-          position: 'absolute', left: 0,
-          top: active ? '-0.5rem' : '50%',
-          transform: active ? 'none' : 'translateY(-50%)',
-          fontSize: active ? '0.75rem' : '0.95rem',
-          color: active ? '#0057FF' : 'rgba(10,10,15,0.40)',
-          background: active ? '#ffffff' : 'transparent',
-          padding: active ? '0 4px' : '0',
-          transition: 'all 0.25s ease',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      >
-        {label}
+        {required && <span className="ml-1 text-[#FF7A00]">*</span>}
       </label>
       <select
         name={name}
+        required={required}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="font-body"
-        style={{
-          width: '100%', border: 'none',
-          borderBottom: `1.5px solid ${focused ? '#0057FF' : '#e0e0e8'}`,
-          borderRadius: 0, background: 'transparent',
-          padding: '1.25rem 0 0.75rem',
-          fontSize: '1rem',
-          color: value ? '#0a0a0f' : 'transparent',
-          outline: 'none',
-          appearance: 'none',
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%230a0a0f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'right 0 center',
-          transition: 'border-color 0.25s',
-        }}
+        onChange={(e) => setValue(e.target.value)}
+        className={`w-full appearance-none bg-transparent font-body text-base text-white outline-none border-0 border-b-[1.5px] py-3 px-0 transition-colors duration-300 ${
+          focused ? 'border-[#FF7A00]' : 'border-white/20'
+        }`}
+        style={{ colorScheme: 'dark' }}
       >
-        <option value="" disabled>Selecione o tipo de projeto</option>
+        <option value="" disabled hidden></option>
         {options.map((opt) => (
-          <option key={opt} value={opt}>{opt}</option>
+          <option key={opt} value={opt} style={{ background: '#04050F', color: '#fff' }}>
+            {opt}
+          </option>
         ))}
       </select>
+      <span className="pointer-events-none absolute right-1 top-9 text-white/40">▾</span>
     </div>
   );
 }
 
-/* ── Contact info item ────────────────────────────────── */
-
-function ContactItem({
-  icon,
-  label,
-  value,
-  href,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  href?: string;
-}) {
-  const content = (
-    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-      <div
-        style={{
-          width: 40, height: 40,
-          border: '1px solid rgba(255,255,255,0.10)',
-          borderRadius: '0.5rem',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
-      <div>
-        <span
-          className="font-body"
-          style={{
-            fontSize: '0.75rem', textTransform: 'uppercase',
-            letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)',
-            display: 'block',
-          }}
-        >
-          {label}
-        </span>
-        <span
-          className="font-body"
-          style={{ fontSize: '0.95rem', fontWeight: 500, color: '#ffffff' }}
-        >
-          {value}
-        </span>
-      </div>
-    </div>
-  );
-
-  if (href) {
-    return (
-      <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-        {content}
-      </a>
-    );
-  }
-  return content;
-}
-
-/* ── Social icon button ───────────────────────────────── */
-
-function SocialIcon({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <a
-      href="#"
-      aria-label={label}
-      className="transition-all duration-[250ms] hover:border-[#FF7A00]"
-      style={{
-        width: 40, height: 40,
-        border: '1px solid rgba(255,255,255,0.10)',
-        borderRadius: '0.5rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'rgba(255,255,255,0.50)',
-        transition: 'all 0.25s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#FF7A00';
-        e.currentTarget.style.color = '#FF7A00';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)';
-        e.currentTarget.style.color = 'rgba(255,255,255,0.50)';
-      }}
-    >
-      {children}
-    </a>
-  );
-}
-
-/* ── Main page ────────────────────────────────────────── */
-
-const BUDGET_OPTIONS = [
-  'Até R$ 5.000',
-  'R$ 5.000 – R$ 15.000',
-  'R$ 15.000 – R$ 50.000',
-  'Acima de R$ 50.000',
-];
-
-const PROJECT_TYPES = [
-  'Desenvolvimento Web',
-  'Design de Produto',
-  'Estratégia Digital',
-  'Branding & Identidade',
-  'Outro',
-];
+/* ── Page ──────────────────────────────────────────────── */
 
 export default function ContatoPage() {
-  const leftRef = useRef<HTMLDivElement>(null);
-  const rightRef = useRef<HTMLDivElement>(null);
-  const [budget, setBudget] = useState('');
-  const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success'>('idle');
+  const sectionRef = useRef<HTMLElement>(null);
+  const cardWrapRef = useRef<HTMLDivElement>(null);
+  const tiltGroupRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const borderGlowRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [status, setStatus] = useState<Status>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [formKey, setFormKey] = useState(0);
 
-  useEffect(() => {
-    // Left column entrance
-    if (leftRef.current) {
-      gsap.fromTo(leftRef.current,
-        { opacity: 0, x: -40 },
-        { opacity: 1, x: 0, duration: 0.8, ease: 'power3.out', delay: 0.2 }
-      );
-    }
+  const handleVideoError = useCallback(() => setVideoFailed(true), []);
 
-    // Form fields stagger entrance
-    const fields = document.querySelectorAll('.form-field, .budget-card, .submit-area');
-    if (fields.length) {
-      gsap.fromTo(fields,
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.6, stagger: 0.07, ease: 'power3.out', delay: 0.4 }
-      );
-    }
-  }, []);
-
-  function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitState('loading');
-    setTimeout(() => setSubmitState('success'), 1500);
-    setTimeout(() => setSubmitState('idle'), 4000);
-  }
+    if (status === 'loading' || status === 'success') return;
+
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const payload = {
+      name: String(fd.get('name') ?? ''),
+      email: String(fd.get('email') ?? ''),
+      phone: String(fd.get('phone') ?? ''),
+      projectType: String(fd.get('projectType') ?? ''),
+      message: String(fd.get('message') ?? ''),
+      website: String(fd.get('website') ?? ''),
+    };
+
+    setStatus('loading');
+    setErrorMsg('');
+
+    const subject = `[Clarion] Nova mensagem de ${payload.name}`;
+    const bodyLines = [
+      `Nome: ${payload.name}`,
+      `Email: ${payload.email}`,
+      payload.phone ? `Telefone: ${payload.phone}` : '',
+      payload.projectType ? `Tipo de projeto: ${payload.projectType}` : '',
+      '',
+      'Mensagem:',
+      payload.message,
+    ].filter(Boolean);
+    const mailto =
+      'mailto:clarionwebmkt@gmail.com' +
+      `?subject=${encodeURIComponent(subject)}` +
+      `&body=${encodeURIComponent(bodyLines.join('\n'))}`;
+    window.location.href = mailto;
+
+    setStatus('success');
+    setTimeout(() => {
+      setStatus('idle');
+      setFormKey((k) => k + 1);
+    }, 4000);
+  };
+
+
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (tiltGroupRef.current) {
+        if (reduced) {
+          gsap.set(tiltGroupRef.current, {
+            y: 0,
+            rotateX: 0,
+            rotateZ: 0,
+            opacity: 1,
+            scale: 1,
+          });
+        } else {
+          gsap.set(tiltGroupRef.current, {
+            y: -500,
+            rotateX: -35,
+            rotateZ: -6,
+            opacity: 0,
+            scale: 0.85,
+          });
+          gsap.to(tiltGroupRef.current, {
+            y: 0,
+            rotateX: 0,
+            rotateZ: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 1.4,
+            ease: 'bounce.out',
+            delay: 0.3,
+          });
+        }
+      }
+
+      // Float infinito (drift + scale) — sem rotate, captado pelo ctx
+      if (tiltGroupRef.current) {
+        const floatTl = gsap.timeline({
+          repeat: -1,
+          yoyo: true,
+          defaults: { ease: 'sine.inOut', duration: 3.2 },
+          delay: 2.0,
+          paused: reduced,
+        });
+        floatTl
+          .to(tiltGroupRef.current, { y: -45 }, 0)
+          .to(tiltGroupRef.current, { x: 12 }, 0)
+          .to(tiltGroupRef.current, { scale: 1.05 }, 0);
+      }
+
+      // Glow pulsante na moldura
+      if (borderGlowRef.current) {
+        gsap.to(borderGlowRef.current, {
+          opacity: 0.35,
+          boxShadow: '0 0 80px rgba(0,87,255,0.5)',
+          duration: 2,
+          repeat: -1,
+          yoyo: true,
+          ease: 'sine.inOut',
+          delay: 2.0,
+          paused: reduced,
+        });
+      }
+
+      if (formRef.current) {
+        if (reduced) {
+          gsap.set(formRef.current, { opacity: 1, x: 0 });
+        } else {
+          gsap.from(formRef.current, {
+            opacity: 0,
+            x: 40,
+            duration: 0.8,
+            ease: 'power2.out',
+            delay: 1.6,
+          });
+        }
+      }
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
     <>
       <Navbar />
 
-      <main
-        className="flex flex-col lg:flex-row"
-        style={{ minHeight: '100vh', paddingTop: 0 }}
-      >
-        {/* ── Left column (dark, sticky) ── */}
-        <div
-          ref={leftRef}
-          className="w-full lg:w-[45%] lg:sticky lg:top-0 lg:min-h-screen px-5 sm:px-8 lg:px-16 pt-24 sm:pt-32 lg:pt-40 pb-8 lg:pb-16"
-          style={{
-            background: '#0a0a0f',
-            opacity: 0,
-          }}
+      <main>
+        <section
+          ref={sectionRef}
+          className="relative flex min-h-[100svh] items-center overflow-hidden bg-[#04050F]"
         >
-          <span
-            className="font-body"
-            style={{
-              fontSize: '0.8rem', textTransform: 'uppercase',
-              letterSpacing: '0.14em', color: 'rgba(255,255,255,0.30)',
-              display: 'block',
-            }}
-          >
-            Contato
-          </span>
-
-          <h1
-            className="font-display"
-            style={{
-              fontSize: 'clamp(2.5rem, 4vw, 3.5rem)',
-              fontWeight: 800, color: '#ffffff',
-              lineHeight: 1.0, marginTop: '1rem',
-            }}
-          >
-            Vamos construir algo incrível <span style={{ color: '#FF7A00' }}>juntos.</span>
-          </h1>
-
-          <p
-            className="font-body"
-            style={{
-              fontSize: '1rem', color: 'rgba(255,255,255,0.50)',
-              lineHeight: 1.7, marginTop: '1.5rem', maxWidth: 360,
-            }}
-          >
-            Conte-nos sobre seu projeto. Respondemos em até 24 horas com uma proposta personalizada.
-          </p>
-
-          {/* Separator */}
-          <div className="my-6 sm:my-8 lg:my-12" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }} />
-
-          {/* Contact items */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <ContactItem
-              label="Email"
-              value="contato@clarion.com.br"
-              href="mailto:contato@clarion.com.br"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
-                  <rect x="2" y="4" width="20" height="16" rx="3" />
-                  <path d="M2 7l10 6 10-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              }
+          {/* Background video */}
+          {!videoFailed && (
+            <video
+              ref={videoRef}
+              src={asset('/videos/0403.mp4')}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-hidden="true"
+              tabIndex={-1}
+              onError={handleVideoError}
+              className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
             />
-            <ContactItem
-              label="WhatsApp"
-              value="+55 (11) 99999-9999"
-              href="https://wa.me/5511999999999"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
-                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              }
-            />
-            <ContactItem
-              label="Localização"
-              value="São Paulo, SP — Brasil"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
-              }
-            />
-          </div>
+          )}
 
-          {/* Separator */}
-          <div className="my-6 sm:my-8 lg:my-12" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }} />
-
-          {/* Social icons */}
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <SocialIcon label="Instagram">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2" y="2" width="20" height="20" rx="5" />
-                <circle cx="12" cy="12" r="5" />
-                <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
-              </svg>
-            </SocialIcon>
-            <SocialIcon label="LinkedIn">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2" y="2" width="20" height="20" rx="3" />
-                <path d="M7 10v7M7 7v.01M11 17v-4a2 2 0 114 0v4M11 10v7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </SocialIcon>
-            <SocialIcon label="Behance">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M3 12h6a3 3 0 100-6H3v12h7a3.5 3.5 0 100-7" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M16 6h6M15 15a4 4 0 108 0h-8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </SocialIcon>
-            <SocialIcon label="GitHub">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </SocialIcon>
-          </div>
-        </div>
-
-        {/* ── Right column (form) ── */}
-        <div
-          ref={rightRef}
-          className="w-full lg:w-[55%] px-5 sm:px-8 lg:px-20 pt-8 sm:pt-12 lg:pt-40 pb-12 lg:pb-24 relative overflow-hidden"
-          style={{ background: '#ffffff' }}
-        >
-          <div className="cta-dot-grid pointer-events-none absolute inset-0 z-0" />
-          <div className="bg-glow-blue" style={{ top: '-100px', right: '-100px' }} />
-          <form onSubmit={handleSubmit} className="relative z-[1]">
-            {/* Row 1: Nome + Email */}
-            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: '2rem', marginBottom: '2rem' }}>
-              <FloatingField label="Nome completo" name="name" required />
-              <FloatingField label="Email profissional" name="email" type="email" required />
-            </div>
-
-            {/* Row 2: Telefone + Empresa */}
-            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: '2rem', marginBottom: '2rem' }}>
-              <FloatingField label="Telefone / WhatsApp" name="phone" type="tel" />
-              <FloatingField label="Nome da empresa (opcional)" name="company" />
-            </div>
-
-            {/* Row 3: Tipo de projeto */}
-            <div style={{ marginBottom: '2rem' }}>
-              <FloatingSelect
-                label="Tipo de projeto"
-                name="projectType"
-                options={PROJECT_TYPES}
-              />
-            </div>
-
-            {/* Row 4: Mensagem */}
-            <div style={{ marginBottom: '2.5rem' }}>
-              <FloatingTextarea
-                label="Conte-nos sobre seu projeto, prazo e orçamento estimado..."
-                name="message"
-              />
-            </div>
-
-            {/* Budget radio cards */}
-            <div className="form-field" style={{ marginBottom: '2.5rem' }}>
-              <span
-                className="font-body"
+          {/* Fallback glows when video fails */}
+          {videoFailed && (
+            <>
+              <div
+                className="pointer-events-none absolute z-0"
                 style={{
-                  fontSize: '0.75rem', textTransform: 'uppercase',
-                  letterSpacing: '0.1em', color: 'rgba(10,10,15,0.40)',
-                  display: 'block', marginBottom: '1rem',
+                  width: 700,
+                  height: 700,
+                  top: -150,
+                  left: -150,
+                  background: 'radial-gradient(circle, rgba(0,87,255,0.25) 0%, transparent 70%)',
+                  borderRadius: '50%',
+                  filter: 'blur(60px)',
+                }}
+              />
+              <div
+                className="pointer-events-none absolute z-0"
+                style={{
+                  width: 700,
+                  height: 700,
+                  bottom: -150,
+                  right: -150,
+                  background: 'radial-gradient(circle, rgba(255,122,0,0.22) 0%, transparent 70%)',
+                  borderRadius: '50%',
+                  filter: 'blur(60px)',
+                }}
+              />
+            </>
+          )}
+
+          {/* Dark overlay */}
+          <div
+            className="pointer-events-none absolute inset-0 z-[1]"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(4,5,15,0.88) 0%, rgba(4,5,15,0.65) 50%, rgba(4,5,15,0.88) 100%)',
+            }}
+          />
+
+          {/* Content grid */}
+          <div className="relative z-[2] mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-12 px-5 pb-16 pt-32 sm:px-6 md:grid-cols-[1.1fr_1fr] md:gap-12 lg:gap-20 lg:py-24 lg:pt-40">
+            {/* ── Left column: title + wallet slot + 3D card ── */}
+            <div className="flex flex-col gap-8">
+              <div className="relative z-10">
+                <h1 className="font-display font-[700] leading-[1.05] text-white text-[clamp(1.8rem,3.2vw,2.8rem)]">
+                  Seu projeto, sua marca, seu resultado — em{' '}
+                  <span className="bg-gradient-to-r from-blue to-orange bg-clip-text text-transparent">
+                    um só lugar
+                  </span>
+                  .
+                </h1>
+                <p className="mt-3 font-body text-white/60" style={{ fontSize: '0.95rem' }}>
+                  Tudo o que você precisa para tirar a ideia do papel.
+                </p>
+              </div>
+
+              {/* Float group: moldura + card flutuam juntos */}
+              <div
+                ref={cardWrapRef}
+                className="relative z-0 mt-16 flex items-center justify-center lg:mt-24"
+                style={{ perspective: '1400px' }}
+              >
+                <div
+                  ref={tiltGroupRef}
+                  className="relative w-full max-w-[420px]"
+                  style={{
+                    transformStyle: 'preserve-3d',
+                  }}
+                >
+                  {/* Moldura decorativa (border tracejada + glow pulsante) */}
+                  <div
+                    ref={borderGlowRef}
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-6 rounded-3xl border border-dashed border-white/15 sm:-inset-8"
+                    style={{
+                      background:
+                        'radial-gradient(circle at 50% 50%, rgba(0,87,255,0.10) 0%, transparent 70%)',
+                      boxShadow: '0 0 0px rgba(0,87,255,0)',
+                    }}
+                  />
+              <div
+                ref={cardRef}
+                className="contact-card relative w-full"
+                style={{
+                  aspectRatio: '1.6 / 1',
+                  borderRadius: 20,
+                  padding: 32,
+                  background:
+                    'linear-gradient(135deg, rgba(0,87,255,0.50) 0%, rgba(255,122,0,0.35) 100%)',
+                  backdropFilter: 'blur(24px)',
+                  WebkitBackdropFilter: 'blur(24px)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  boxShadow:
+                    '0 30px 80px -20px rgba(0,87,255,0.4), 0 20px 50px -20px rgba(255,122,0,0.3)',
+                  ['--mx' as never]: '50%',
+                  ['--my' as never]: '50%',
                 }}
               >
-                Faixa de investimento
-              </span>
-              <div className="grid grid-cols-2" style={{ gap: '0.75rem' }}>
-                {BUDGET_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    className="budget-card font-body text-left transition-all duration-200"
-                    onClick={() => setBudget(opt)}
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '0.75rem',
-                      border: budget === opt
-                        ? '1.5px solid #0057FF'
-                        : '1px solid #e0e0e8',
-                      background: budget === opt
-                        ? 'rgba(0,87,255,0.04)' : 'transparent',
-                      color: budget === opt
-                        ? '#0057FF' : 'rgba(10,10,15,0.55)',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {opt}
-                  </button>
-                ))}
+                {/* Cursor glow */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    borderRadius: 20,
+                    background:
+                      'radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.18), transparent 40%)',
+                  }}
+                />
+
+                {/* Chip */}
+                <div className="relative" style={{ width: 40, height: 32 }}>
+                  <svg viewBox="0 0 40 32" fill="none" className="h-full w-full">
+                    <defs>
+                      <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#0057FF" />
+                        <stop offset="100%" stopColor="#FF7A00" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="1" y="1" width="38" height="30" rx="5" fill="url(#chip)" opacity="0.9" />
+                    <rect x="6" y="6" width="12" height="8" rx="1.5" fill="rgba(255,255,255,0.25)" />
+                    <rect x="22" y="6" width="12" height="8" rx="1.5" fill="rgba(255,255,255,0.25)" />
+                    <rect x="6" y="18" width="12" height="8" rx="1.5" fill="rgba(255,255,255,0.25)" />
+                    <rect x="22" y="18" width="12" height="8" rx="1.5" fill="rgba(255,255,255,0.25)" />
+                  </svg>
+                </div>
+
+                {/* Center brand */}
+                <div className="relative mt-6">
+                  <div className="font-display font-[700] text-white" style={{ fontSize: '2rem', letterSpacing: '0.05em' }}>
+                    CLARION
+                  </div>
+                  <div className="font-body uppercase text-white/60" style={{ fontSize: 10, letterSpacing: '0.22em' }}>
+                    Digital Studio
+                  </div>
+                </div>
+
+                {/* Footer row */}
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between px-8 pb-6">
+                  <span className="font-body text-white/60" style={{ fontSize: 11 }}>
+                    São Paulo · BR
+                  </span>
+                  <span className="font-body text-white/80" style={{ fontSize: 11 }}>
+                    clarionwebmkt@gmail.com
+                  </span>
+                </div>
+              </div>
+                </div>
               </div>
             </div>
 
-            {/* Submit */}
-            <div className="submit-area">
-              <button
-                type="submit"
-                disabled={submitState === 'loading'}
-                className="font-display transition-all duration-300"
-                style={{
-                  width: '100%',
-                  padding: '1rem 3rem',
-                  borderRadius: '99px',
-                  border: 'none',
-                  background: submitState === 'success' ? '#00C896' : '#0057FF',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  cursor: submitState === 'loading' ? 'wait' : 'pointer',
-                  marginTop: '0.5rem',
-                  transform: 'translateY(0)',
-                }}
-                onMouseEnter={(e) => {
-                  if (submitState === 'idle') {
-                    e.currentTarget.style.background = '#0040CC';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (submitState === 'idle') {
-                    e.currentTarget.style.background = '#0057FF';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }
-                }}
+            {/* ── Form panel ── */}
+            <div
+              className="relative w-full max-w-[520px] justify-self-center lg:justify-self-end"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 20,
+                padding: 32,
+              }}
+            >
+              <h1
+                className="font-display font-[700] leading-tight text-white"
+                style={{ fontSize: 'clamp(1.8rem, 2.5vw, 2.5rem)', marginBottom: 8 }}
               >
-                {submitState === 'loading' && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
-                      <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2" opacity="0.3" />
-                      <path d="M12 2a10 10 0 019.95 9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                    Enviando...
-                  </span>
-                )}
-                {submitState === 'success' && 'Mensagem enviada! ✓'}
-                {submitState === 'idle' && 'Enviar mensagem →'}
-              </button>
-
-              <p
-                className="font-body"
-                style={{
-                  fontSize: '0.8rem', color: 'rgba(10,10,15,0.35)',
-                  textAlign: 'center', marginTop: '1rem',
-                }}
-              >
-                Respondemos em até 24 horas. Sem spam, prometemos.
+                Vamos criar algo incrível.
+              </h1>
+              <p className="font-body text-white/60" style={{ fontSize: '0.95rem', marginBottom: 32 }}>
+                Conte sobre seu projeto. Respondemos em 24 horas.
               </p>
+
+              <form
+                key={formKey}
+                ref={formRef}
+                onSubmit={handleSubmit}
+                className="flex flex-col gap-2"
+                noValidate
+              >
+                {/* Honeypot */}
+                <input
+                  type="text"
+                  name="website"
+                  autoComplete="off"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className="absolute h-0 w-0 opacity-0 pointer-events-none"
+                />
+                <FloatingField label="Nome completo" name="name" required autoComplete="name" />
+                <FloatingField label="Email profissional" type="email" name="email" required autoComplete="email" />
+                <FloatingField label="Telefone / WhatsApp" type="tel" name="phone" autoComplete="tel" />
+                <FloatingSelect
+                  label="Tipo de projeto"
+                  name="projectType"
+                  required
+                  options={['Sites', 'Apps', 'Automações', 'Dashboards', 'Outro']}
+                />
+                <FloatingField label="Mensagem" name="message" textarea rows={5} required />
+
+                <div className="form-cta mt-6">
+                  <button
+                    type="submit"
+                    disabled={status === 'loading' || status === 'success'}
+                    aria-busy={status === 'loading'}
+                    className="font-display flex h-14 w-full items-center justify-center gap-2 rounded-pill text-sm font-semibold text-white transition-all duration-300 disabled:cursor-not-allowed"
+                    style={{
+                      background: status === 'success' ? '#00C896' : '#0057FF',
+                      boxShadow:
+                        status === 'success'
+                          ? '0 12px 30px -10px rgba(0,200,150,0.5)'
+                          : '0 12px 30px -10px rgba(0,87,255,0.6)',
+                    }}
+                  >
+                    {status === 'loading' && (
+                      <svg className="contact-spinner h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3" />
+                        <path d="M22 12a10 10 0 0 1-10 10" stroke="white" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                    )}
+                    {status === 'idle' && <>Enviar mensagem →</>}
+                    {status === 'loading' && <>Enviando...</>}
+                    {status === 'success' && <>Mensagem enviada ✓</>}
+                    {status === 'error' && <>Tentar novamente</>}
+                  </button>
+                  {status === 'error' && errorMsg && (
+                    <p role="alert" className="mt-3 text-center text-sm text-red-400">
+                      {errorMsg}
+                    </p>
+                  )}
+                </div>
+              </form>
             </div>
-          </form>
-        </div>
+          </div>
+        </section>
       </main>
 
-      {/* Spinner keyframe */}
+      <Footer />
+
       <style jsx global>{`
-        @keyframes spin {
+        @keyframes contact-spin {
           to { transform: rotate(360deg); }
+        }
+        .contact-spinner {
+          animation: contact-spin 0.9s linear infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .contact-spinner { animation: none; }
         }
       `}</style>
     </>

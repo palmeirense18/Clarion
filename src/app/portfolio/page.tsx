@@ -5,6 +5,8 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { projects, CATEGORY_COLORS, type Project, type ProjectCategory } from '@/lib/projects';
+import { asset } from '@/lib/asset';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -15,36 +17,13 @@ function hexToRgb(hex: string): string {
   return `${parseInt(h.substring(0, 2), 16)},${parseInt(h.substring(2, 4), 16)},${parseInt(h.substring(4, 6), 16)}`;
 }
 
+function accentOf(project: Project) {
+  return CATEGORY_COLORS[project.category];
+}
+
 /* ── Data ─────────────────────────────────────────────── */
 
-const projects = [
-  { id: '01', name: 'NovaPay Dashboard', category: 'Web App', year: '2024',
-    color: '#0057FF', gradient: 'linear-gradient(135deg,#0057FF,#003ACC)',
-    stack: ['React','Next.js','TypeScript','Figma'],
-    desc: 'Plataforma financeira com visualização de dados em tempo real e gestão de transações para +50k usuários.' },
-  { id: '02', name: 'Virtus Store', category: 'E-commerce', year: '2024',
-    color: '#FF7A00', gradient: 'linear-gradient(135deg,#FF7A00,#CC4400)',
-    stack: ['Shopify','React','Figma','GSAP'],
-    desc: 'Experiência de compra reimaginada com AR try-on e checkout em 3 segundos.' },
-  { id: '03', name: 'AtmosHealth', category: 'Produto Digital', year: '2024',
-    color: '#00C896', gradient: 'linear-gradient(135deg,#1a1a2e,#0a0a1a)',
-    stack: ['React Native','Node.js','Firebase'],
-    desc: 'App de saúde que monitora bem-estar com IA preditiva e integração com wearables.' },
-  { id: '04', name: 'Drois Festival', category: 'Branding + Web', year: '2023',
-    color: '#7B2FFF', gradient: 'linear-gradient(135deg,#7B2FFF,#0057FF)',
-    stack: ['Next.js','GSAP','Figma','Framer'],
-    desc: 'Identidade completa e site para festival de música eletrônica com 80k visitantes.' },
-  { id: '05', name: 'Loop Fitness', category: 'Mobile App', year: '2023',
-    color: '#FF3D6B', gradient: 'linear-gradient(135deg,#FF3D6B,#0057FF)',
-    stack: ['React Native','Firebase','Figma'],
-    desc: 'Aplicativo de treinos personalizados com gamificação e comunidade ativa.' },
-  { id: '06', name: 'Café Roast', category: 'Branding', year: '2023',
-    color: '#FF7A00', gradient: 'linear-gradient(135deg,#8B4513,#FF7A00)',
-    stack: ['Figma','Illustrator','Webflow'],
-    desc: 'Identidade visual completa para rede de cafeterias artesanais em São Paulo.' },
-];
-
-const CATEGORIES = ['Todos', 'Web App', 'E-commerce', 'Branding', 'Mobile App', 'Produto Digital'];
+const CATEGORIES: Array<'Todos' | ProjectCategory> = ['Todos', 'SaaS', 'Site'];
 
 /* ── Component ────────────────────────────────────────── */
 
@@ -53,15 +32,16 @@ export default function PortfolioPage() {
   const headerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const previewImgRef = useRef<HTMLImageElement>(null);
   const previewNameRef = useRef<HTMLSpanElement>(null);
   const cursorOuterRef = useRef<HTMLDivElement>(null);
   const cursorDotRef = useRef<HTMLDivElement>(null);
   const cursorTextRef = useRef<HTMLSpanElement>(null);
   const counterRef = useRef<HTMLSpanElement>(null);
 
-  const [activeFilter, setActiveFilter] = useState('Todos');
+  const [activeFilter, setActiveFilter] = useState<'Todos' | ProjectCategory>('Todos');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [hoveredProject, setHoveredProject] = useState<typeof projects[0] | null>(null);
+  const [hoveredProject, setHoveredProject] = useState<Project | null>(null);
 
   const mouse = useRef({ x: 0, y: 0 });
   const cursorPos = useRef({ x: 0, y: 0 });
@@ -70,7 +50,7 @@ export default function PortfolioPage() {
 
   const filtered = activeFilter === 'Todos'
     ? projects
-    : projects.filter(p => p.category === activeFilter || p.category.includes(activeFilter));
+    : projects.filter((p) => p.category === activeFilter);
 
   /* ── Custom cursor RAF loop ── */
   const tick = useCallback(() => {
@@ -155,7 +135,17 @@ export default function PortfolioPage() {
           gsap.to(prev, { height: 88, duration: 0.4, ease: 'power3.inOut' });
         }
       }
-      gsap.to(row, { height: 340, duration: 0.5, ease: 'power3.inOut' });
+      // Mobile: measure the actual content so long descriptions don't clip.
+      const isMobile = window.matchMedia('(max-width: 639px)').matches;
+      let targetHeight: number = 340;
+      if (isMobile) {
+        panel.style.opacity = '0';
+        panel.style.position = 'static';
+        // Force layout so we can measure the panel's natural height.
+        const panelHeight = panel.scrollHeight;
+        targetHeight = 88 + panelHeight + 16;
+      }
+      gsap.to(row, { height: targetHeight, duration: 0.5, ease: 'power3.inOut' });
       gsap.fromTo(panel,
         { opacity: 0, y: 16 },
         { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.25 }
@@ -164,29 +154,33 @@ export default function PortfolioPage() {
     }
   }
 
-  /* ── Row hover — two-layer background system ── */
-  function onRowEnter(project: typeof projects[0]) {
+  /* ── Row hover ── */
+  function onRowEnter(project: Project) {
     setHoveredProject(project);
+    const accent = accentOf(project);
 
-    // Overlay: tint of project color, max 0.15 opacity over permanent #0a0a0f base
     if (overlayRef.current) {
       gsap.to(overlayRef.current, {
-        backgroundColor: `rgba(${hexToRgb(project.color)}, 0.15)`,
+        backgroundColor: `rgba(${hexToRgb(accent)}, 0.15)`,
         duration: 0.8, ease: 'power2.out',
       });
     }
 
     if (cursorOuterRef.current) {
       gsap.to(cursorOuterRef.current, {
-        width: 80, height: 80, borderColor: project.color, duration: 0.3,
+        width: 80, height: 80,
+        borderColor: accent,
+        duration: 0.3,
       });
     }
     if (cursorTextRef.current) {
+      // Every row now toggles the in-page panel — single "VER" label.
+      cursorTextRef.current.textContent = 'VER';
       gsap.to(cursorTextRef.current, { opacity: 1, duration: 0.2 });
     }
 
-    if (expandedId !== project.id && previewRef.current && previewNameRef.current) {
-      previewRef.current.style.background = project.gradient;
+    if (expandedId !== project.id && previewRef.current && previewNameRef.current && previewImgRef.current) {
+      previewImgRef.current.src = asset(project.image);
       previewNameRef.current.textContent = project.name;
       gsap.to(previewRef.current, { opacity: 1, scale: 1, duration: 0.4, ease: 'power2.out' });
     }
@@ -195,7 +189,6 @@ export default function PortfolioPage() {
   function onRowLeave() {
     setHoveredProject(null);
 
-    // Overlay fades back to transparent (base #0a0a0f shows through)
     if (overlayRef.current) {
       gsap.to(overlayRef.current, {
         backgroundColor: 'rgba(0,0,0,0)',
@@ -216,11 +209,17 @@ export default function PortfolioPage() {
     }
   }
 
+  function handleRowClick(project: Project) {
+    // Every row toggles the in-page expansion. External URLs live exclusively
+    // on the "Visitar site" CTA inside the expanded panel.
+    toggleRow(project.id);
+  }
+
   return (
     <div className="portfolio-page">
       <Navbar />
 
-      {/* Layer 1 — permanent dark base (never changes) */}
+      {/* Layer 1 — permanent dark base */}
       <div
         style={{
           position: 'fixed', inset: 0, zIndex: -2,
@@ -229,7 +228,7 @@ export default function PortfolioPage() {
         }}
       />
 
-      {/* Layer 2 — reactive color overlay (max 0.15 opacity) */}
+      {/* Layer 2 — reactive tint */}
       <div
         ref={overlayRef}
         style={{
@@ -295,12 +294,33 @@ export default function PortfolioPage() {
           willChange: 'transform',
           alignItems: 'flex-end',
           padding: '1rem',
+          background: '#0a0a0f',
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          ref={previewImgRef}
+          alt=""
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'top center',
+          }}
+        />
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent 50%)',
+          }}
+        />
         <span
           ref={previewNameRef}
-          className="font-display"
-          style={{ color: '#ffffff', fontWeight: 700, fontSize: '1.1rem' }}
+          className="font-display relative"
+          style={{ color: '#ffffff', fontWeight: 700, fontSize: '1.1rem', zIndex: 1 }}
         />
       </div>
 
@@ -325,7 +345,7 @@ export default function PortfolioPage() {
               <h1
                 className="font-display"
                 style={{
-                  fontSize: 'clamp(3.5rem, 7vw, 6rem)',
+                  fontSize: 'clamp(2.5rem, 8vw, 6rem)',
                   fontWeight: 800, color: '#ffffff',
                   lineHeight: 0.95, marginTop: '0.5rem',
                 }}
@@ -345,15 +365,16 @@ export default function PortfolioPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {CATEGORIES.map(cat => (
+              {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setActiveFilter(cat)}
                   className="font-body"
                   style={{
-                    padding: '0.5rem 1.2rem',
+                    padding: '0.55rem 1.1rem',
+                    minHeight: '40px',
                     borderRadius: '99px',
-                    fontSize: '0.8rem',
+                    fontSize: '0.75rem',
                     fontWeight: 500,
                     cursor: 'none',
                     transition: 'all 0.3s',
@@ -378,167 +399,217 @@ export default function PortfolioPage() {
           style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
           onMouseLeave={onRowLeave}
         >
-          {filtered.map((project) => (
-            <div
-              key={project.id}
-              data-row-id={project.id}
-              className="project-row"
-              onClick={() => toggleRow(project.id)}
-              onMouseEnter={() => onRowEnter(project)}
-              style={{
-                height: 88,
-                display: 'flex',
-                flexDirection: 'column',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                cursor: 'none',
-                overflow: 'hidden',
-                transition: 'background-color 0.3s',
-                backgroundColor: hoveredProject?.id === project.id
-                  ? 'rgba(255,255,255,0.03)' : 'transparent',
-              }}
-            >
-              {/* Row header */}
+          {filtered.map((project) => {
+            const accent = accentOf(project);
+            const hasUrl = !!project.url;
+
+            return (
               <div
-                className="px-2 sm:px-4"
+                key={project.id}
+                data-row-id={project.id}
+                className="project-row"
+                onClick={() => handleRowClick(project)}
+                onMouseEnter={() => onRowEnter(project)}
                 style={{
-                  display: 'flex', alignItems: 'center',
-                  height: 88, flexShrink: 0,
+                  height: 88,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  cursor: 'none',
+                  overflow: 'hidden',
+                  transition: 'background-color 0.3s',
+                  backgroundColor: hoveredProject?.id === project.id
+                    ? 'rgba(255,255,255,0.03)' : 'transparent',
                 }}
               >
-                <span
-                  className="font-display project-num"
-                  style={{
-                    fontSize: '0.8rem', width: '3rem',
-                    color: hoveredProject?.id === project.id
-                      ? project.color : 'rgba(255,255,255,0.20)',
-                    transition: 'color 0.3s',
-                  }}
-                >
-                  {project.id}
-                </span>
-
-                <span
-                  className="font-display project-name"
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 'clamp(1.4rem, 2.5vw, 2rem)',
-                    flex: 1,
-                    color: (expandedId === project.id || hoveredProject?.id === project.id)
-                      ? project.color : '#ffffff',
-                    transition: 'color 0.3s',
-                  }}
-                >
-                  {project.name}
-                </span>
-
-                <span
-                  className="font-body project-category hidden md:block"
-                  style={{
-                    fontSize: '0.75rem', textTransform: 'uppercase',
-                    letterSpacing: '0.1em', width: '10rem',
-                    color: 'rgba(255,255,255,0.35)',
-                    textAlign: 'right',
-                  }}
-                >
-                  {project.category}
-                </span>
-
-                <span
-                  className="font-body project-year hidden sm:block"
-                  style={{
-                    fontSize: '0.85rem', width: '4rem',
-                    color: 'rgba(255,255,255,0.20)',
-                    textAlign: 'right',
-                  }}
-                >
-                  {project.year}
-                </span>
-
-                <span
-                  style={{
-                    marginLeft: '1.5rem',
-                    color: 'rgba(255,255,255,0.25)',
-                    fontSize: '1.2rem',
-                    transition: 'transform 0.4s',
-                    transform: expandedId === project.id ? 'rotate(45deg)' : 'rotate(0deg)',
-                    display: 'inline-block',
-                  }}
-                >
-                  →
-                </span>
-              </div>
-
-              {/* Expanded panel */}
-              <div
-                className="row-panel px-2 sm:px-4 pb-6 sm:pb-10 flex flex-wrap gap-4 sm:gap-8"
-                style={{ opacity: 0 }}
-              >
+                {/* Row header */}
                 <div
-                  className="w-full sm:w-[300px] h-[140px] sm:h-[180px]"
+                  className="px-2 sm:px-4"
                   style={{
-                    borderRadius: '1rem',
-                    background: project.gradient,
-                    flexShrink: 0,
+                    display: 'flex', alignItems: 'center',
+                    height: 88, flexShrink: 0,
                   }}
-                />
-
-                <div style={{ flex: 1, minWidth: 260 }}>
-                  <p
-                    className="font-body"
+                >
+                  <span
+                    className="font-display project-num"
                     style={{
-                      color: 'rgba(255,255,255,0.60)',
-                      fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 420,
+                      fontSize: '0.8rem', width: '3rem',
+                      color: hoveredProject?.id === project.id
+                        ? accent : 'rgba(255,255,255,0.20)',
+                      transition: 'color 0.3s',
                     }}
                   >
-                    {project.desc}
-                  </p>
+                    {project.id}
+                  </span>
 
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1.25rem' }}>
-                    {project.stack.map(tech => (
-                      <span
-                        key={tech}
-                        className="font-body"
-                        style={{
-                          padding: '0.3rem 0.8rem',
-                          borderRadius: '99px',
-                          border: '1px solid rgba(255,255,255,0.10)',
-                          fontSize: '0.75rem',
-                          color: 'rgba(255,255,255,0.45)',
-                        }}
-                      >
-                        {tech}
-                      </span>
-                    ))}
+                  <span
+                    className="font-display project-name"
+                    style={{
+                      fontWeight: 700,
+                      fontSize: 'clamp(1.4rem, 2.5vw, 2rem)',
+                      flex: 1,
+                      color: (expandedId === project.id || hoveredProject?.id === project.id)
+                        ? accent : '#ffffff',
+                      transition: 'color 0.3s',
+                    }}
+                  >
+                    {project.name}
+                  </span>
+
+                  <span
+                    className="font-body project-category hidden md:block"
+                    style={{
+                      fontSize: '0.75rem', textTransform: 'uppercase',
+                      letterSpacing: '0.1em', width: '10rem',
+                      color: 'rgba(255,255,255,0.35)',
+                      textAlign: 'right',
+                    }}
+                  >
+                    {project.category}
+                  </span>
+
+                  <span
+                    className="font-body project-year hidden sm:block"
+                    style={{
+                      fontSize: '0.85rem', width: '4rem',
+                      color: 'rgba(255,255,255,0.20)',
+                      textAlign: 'right',
+                    }}
+                  >
+                    {project.year}
+                  </span>
+
+                  <span
+                    style={{
+                      marginLeft: '1.5rem',
+                      color: 'rgba(255,255,255,0.25)',
+                      fontSize: '1.2rem',
+                      transition: 'transform 0.4s',
+                      transform: expandedId === project.id ? 'rotate(45deg)' : 'rotate(0deg)',
+                      display: 'inline-block',
+                    }}
+                  >
+                    →
+                  </span>
+                </div>
+
+                {/* Expanded panel */}
+                <div
+                  className="row-panel px-2 sm:px-4 pb-6 sm:pb-10 flex flex-wrap gap-4 sm:gap-8"
+                  style={{ opacity: 0 }}
+                >
+                  <div
+                    className="w-full sm:w-[300px] h-[140px] sm:h-[180px] relative"
+                    style={{
+                      borderRadius: '1rem',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      background: '#0a0a0f',
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={asset(project.image)}
+                      alt={project.name}
+                      loading="lazy"
+                      decoding="async"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'top center',
+                        display: 'block',
+                      }}
+                    />
+                    <div
+                      aria-hidden
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: `linear-gradient(135deg, ${accent}22, transparent 55%)`,
+                        pointerEvents: 'none',
+                      }}
+                    />
                   </div>
 
-                  <button
-                    className="font-body"
-                    style={{
-                      marginTop: '1.5rem',
-                      padding: '0.6rem 1.8rem',
-                      borderRadius: '99px',
-                      border: `1.5px solid ${project.color}`,
-                      background: 'transparent',
-                      color: project.color,
-                      fontWeight: 500, fontSize: '0.875rem',
-                      cursor: 'none',
-                      transition: 'all 0.25s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = project.color;
-                      e.currentTarget.style.color = '#ffffff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = project.color;
-                    }}
-                  >
-                    Ver projeto completo →
-                  </button>
+                  <div style={{ flex: 1, minWidth: 260 }}>
+                    <span
+                      className="font-body"
+                      style={{
+                        fontSize: '0.7rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.14em',
+                        color: 'rgba(255,255,255,0.40)',
+                      }}
+                    >
+                      {project.client}
+                    </span>
+                    <p
+                      className="font-body"
+                      style={{
+                        color: 'rgba(255,255,255,0.60)',
+                        fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 420,
+                        marginTop: '0.5rem',
+                      }}
+                    >
+                      {project.description}
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1.25rem' }}>
+                      {project.stack.map((tech) => (
+                        <span
+                          key={tech}
+                          className="font-body"
+                          style={{
+                            padding: '0.3rem 0.8rem',
+                            borderRadius: '99px',
+                            border: '1px solid rgba(255,255,255,0.10)',
+                            fontSize: '0.75rem',
+                            color: 'rgba(255,255,255,0.45)',
+                          }}
+                        >
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+
+                    {hasUrl && (
+                      <a
+                        href={project.url!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-body"
+                        style={{
+                          display: 'inline-block',
+                          marginTop: '1.5rem',
+                          padding: '0.6rem 1.8rem',
+                          borderRadius: '99px',
+                          border: `1.5px solid ${accent}`,
+                          background: 'transparent',
+                          color: accent,
+                          fontWeight: 500, fontSize: '0.875rem',
+                          cursor: 'none',
+                          textDecoration: 'none',
+                          transition: 'all 0.25s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = accent;
+                          e.currentTarget.style.color = '#ffffff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = accent;
+                        }}
+                      >
+                        Visitar site →
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div style={{ height: '6rem' }} />

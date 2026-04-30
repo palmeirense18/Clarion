@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ReactLenis, useLenis } from 'lenis/react';
-import { ReactNode } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -43,6 +42,25 @@ interface SmoothScrollProps {
 }
 
 export default function SmoothScroll({ children }: SmoothScrollProps) {
+  // Lenis adds perceptible lag to touch scrolling — native momentum-scroll
+  // on mobile always feels more responsive. We gate Lenis to viewports ≥ 768px.
+  // `null` during SSR / first paint: render children un-wrapped; the effect
+  // below decides whether to re-mount with Lenis on hydration.
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const update = () => setEnabled(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  if (!enabled) {
+    // Mobile or pre-hydration: native scroll.
+    return <>{children}</>;
+  }
+
   return (
     <ReactLenis
       root

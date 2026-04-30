@@ -217,6 +217,15 @@ export default function Testimonials() {
         <MarqueeRow items={row1} direction="left" speed="45s" />
         <MarqueeRow items={row2} direction="right" speed="55s" />
       </div>
+
+      <style jsx global>{`
+        @media (prefers-reduced-motion: reduce) {
+          .animate-marquee-left,
+          .animate-marquee-right {
+            animation-play-state: paused !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }
